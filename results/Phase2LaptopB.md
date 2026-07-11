@@ -54,14 +54,14 @@ Unlike the previous implementation, structural pruning reconstructs the neural n
 * Structural pruning physically reduced the size of the neural network.
 * Approximately one million parameters were removed.
 * Model storage decreased from **13.60 MB** to **9.59 MB**.
-* CPU inference latency improved from **0.053954 s** to **0.037731 s**.
+* CPU inference latency was measured at **0.037731 s** on the experimental hardware.
 * Structural pruning substantially outperformed masking-based pruning in terms of deployment efficiency.
 
 ---
 
 ## Preliminary Conclusion
 
-Unlike masking-based pruning, structural pruning achieved genuine model compression while improving inference latency relative to the original FP32 model.
+Unlike masking-based pruning, structural pruning achieved genuine model compression while maintaining efficient CPU inference on the experimental hardware.
 
 These findings suggest that deployment efficiency depends not only on the compression technique itself but also on how the compression is implemented.
 
@@ -118,7 +118,7 @@ Structural Pruning → Dynamic Quantization
 
 * Dynamic quantization further reduced model storage after structural pruning.
 * Total model size decreased by approximately **51%** relative to the original FP32 baseline.
-* CPU latency remained close to the structurally pruned model while remaining below the FP32 baseline.
+* CPU latency was measured at **0.038161 s**, remaining close to the structurally pruned model.
 * The combination of structural pruning and quantization produced the highest compression ratio observed in the study.
 * Unlike Phase 1, compression gains translated into genuine deployment benefits.
 
@@ -201,7 +201,7 @@ A manual classifier reconstruction step was required to restore inference functi
 * The native **Q → P** pipeline could not be executed without additional intervention.
 * Manual classifier reconstruction restored inference functionality.
 * Even after repair, the resulting model remained larger than the **P → Q** pipeline.
-* CPU inference latency remained close to the original FP32 baseline.
+* CPU inference latency was measured at **0.034752 s** after classifier reconstruction.
 * Compression order influenced both deployment performance and implementation feasibility.
 
 ---
@@ -210,6 +210,6 @@ A manual classifier reconstruction step was required to restore inference functi
 
 Unlike Structural **P → Q**, the Structural **Q → P** pipeline encountered framework-level compatibility issues between Dynamic Quantization and structural channel removal.
 
-Although inference could be restored through manual reconstruction, the resulting model remained larger than the **P → Q** pipeline despite achieving comparable inference performance.
+Although inference could be restored through manual reconstruction, the resulting model remained larger than the **P → Q** pipeline while requiring additional implementation effort.
 
 These findings suggest that compression order affects not only performance metrics but also practical deployability within existing deep learning toolchains.
