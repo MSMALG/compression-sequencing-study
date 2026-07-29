@@ -59,15 +59,15 @@ MobileNetV2 (Pretrained)
 
 ### Observations
 
-• Structural pruning physically reduced the size of the neural network.
+- Structural pruning physically reduced the size of the neural network.
 
-• Approximately one million parameters were removed.
+- Approximately one million parameters were removed.
 
-• Model storage decreased from 13.60 MB to 9.59 MB.
+- Model storage decreased from 13.60 MB to 9.59 MB.
 
-• CPU latency remained within approximately 2% of the original FP32 model.
+- CPU latency remained within approximately 2% of the original FP32 model.
 
-• Structural pruning substantially outperformed masking-based pruning in terms of deployment efficiency.
+- Structural pruning substantially outperformed masking-based pruning in terms of deployment efficiency.
 
 ---
 
@@ -133,15 +133,15 @@ Structurally Pruned MobileNetV2
 
 ### Observations
 
-• Dynamic quantization further reduced model storage after structural pruning.
+- Dynamic quantization further reduced model storage after structural pruning.
 
-• Total model size decreased by approximately 51% relative to the original FP32 baseline.
+- Total model size decreased by approximately 51% relative to the original FP32 baseline.
 
-• CPU latency remained extremely close to baseline performance.
+- CPU latency remained extremely close to baseline performance.
 
-• The combination of structural pruning and quantization produced the best compression ratio observed so far.
+- The combination of structural pruning and quantization produced the best compression ratio observed so far.
 
-• Unlike Phase 1, compression gains translated into genuine deployment benefits.
+- Unlike Phase 1, compression gains translated into genuine deployment benefits.
 
 ---
 
@@ -192,53 +192,46 @@ This created a dimensional mismatch that prevented inference execution.
 
 ---
 
-### Framework Compatibility Finding
+### Repair Process
 
-The default combination of PyTorch Dynamic Quantization and Torch-Pruning did not automatically reconstruct the quantized classifier after structural channel removal.
+A two-step repair was required to restore both correctness and quantization:
 
-As a result, the native Q → P pipeline was not directly deployable.
+1. **Weight recovery:** `pruner.pruning_history()` was used to identify which of the original 1280 channels survived pruning. The original trained classifier weights were sliced down to the 1024 surviving columns, producing a float `nn.Linear(1024, 1000)` with real trained weights (not randomly initialized).
+2. **Re-quantization:** The sliced float classifier was assigned a `qconfig` (`torch.quantization.default_dynamic_qconfig`) and converted back into a `DynamicQuantizedLinear` via `torch.ao.nn.quantized.dynamic.Linear.from_float()`.
 
-A manual classifier reconstruction step was required to restore inference functionality.
+An earlier repair attempt completed step 1 but skipped step 2, leaving the classifier as an unquantized `nn.Linear`. This produced results numerically indistinguishable from structural-pruning-only (matching parameter count and model size), which understated the effect of quantization in the Q → P pipeline. This has been corrected.
 
 ---
 
-### Results (After Classifier Reconstruction)
+### Results (After Full Repair)
 
-| Metric      | Value      |
-| ----------- | ---------- |
-| Parameters  | 1,435,140  |
-| Model Size  | 9.60 MB    |
-| CPU Latency | 0.058864 s |
+| Metric      |          Value |
+| ----------- | -------------: |
+| Parameters  |      1,435,140 |
+| Model Size  |        6.66 MB |
+| CPU Latency | **[Laptop B: pending confirmed run]** |
 
 ---
 
 ### Comparison with Structural P → Q
 
-| Metric      | P → Q      | Q → P (Repaired) |
-| ----------- | ---------- | ---------------- |
-| Model Size  | 6.67 MB    | 9.60 MB          |
-| CPU Latency | 0.054325 s | 0.058864 s       |
+| Metric      |          P → Q | Q → P (Repaired) |
+| ----------- | -------------: | ----------------: |
+| Model Size  |        6.67 MB |            6.66 MB |
+| CPU Latency |     0.054325 s | **[pending]**      |
 
 ---
 
 ### Observations
 
-• Structural pruning successfully removed channels from the quantized model.
-
-• The native Q → P pipeline could not be executed without additional intervention.
-
-• Manual classifier reconstruction restored inference functionality.
-
-• Even after repair, the resulting model remained larger and slower than the P → Q pipeline.
-
-• Compression order influenced both deployment performance and implementation feasibility.
+* Structural pruning successfully removed channels from the quantized model.
+* The native Q → P pipeline could not be executed without additional intervention.
+* A two-part repair (trained-weight recovery + re-quantization) was required; recovering weights alone was insufficient and silently produced an unquantized model.
+* After full repair, Q → P and P → Q now produce near-identical model sizes (6.66 MB vs 6.67 MB), confirming both pipelines are being compared on equal footing for the first time.
+* [Update after confirmed latency run: state whether Q → P still shows a latency penalty vs P → Q now that the quantization confound is removed.]
 
 ---
 
 ### Preliminary Conclusion
 
-Unlike Structural P → Q, the Structural Q → P pipeline encountered framework-level compatibility issues between Dynamic Quantization and structural channel removal.
-
-Although inference could be restored through manual reconstruction, the resulting model failed to match the compression efficiency achieved by P → Q.
-
-These findings suggest that compression order affects not only performance metrics but also practical deployability within existing deep learning toolchains.
+[To be finalized once latency is confirmed — do not carry over the old "Q → P pipeline encountered framework-level compatibility issues... failed to match the compression efficiency of P → Q" conclusion as-is, since that conclusion was based on a comparison where Q → P was accidentally not quantized at all.]
