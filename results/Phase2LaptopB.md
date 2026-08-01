@@ -26,42 +26,42 @@ Unlike the previous implementation, structural pruning reconstructs the neural n
 
 ## Results
 
-| Metric      |          Value |
-| ----------- | -------------: |
-| Parameters  |      2,460,140 |
-| Model Size  |        9.59 MB |
-| CPU Latency | **0.037731 s** |
+| Metric | Value |
+|---------|------:|
+| Parameters | 2,460,140 |
+| Model Size | 9.59 MB |
+| CPU Latency | **0.036048 s** |
 
 ### Comparison with Phase 1 (Masking Pruning)
 
-| Metric      | Phase 1 (Masking) | Phase 2 (Structural) |
-| ----------- | ----------------: | -------------------: |
-| Parameters  |     ~3.50 Million |         2.46 Million |
-| Model Size  |          13.60 MB |              9.59 MB |
-| CPU Latency |        0.066158 s |       **0.037731 s** |
+| Metric | Phase 1 (Masking) | Phase 2 (Structural) |
+|---------|------------------:|---------------------:|
+| Parameters | ~3.50 Million | 2.46 Million |
+| Model Size | 13.60 MB | 9.59 MB |
+| CPU Latency | 0.066158 s | **0.036048 s** |
 
 ### Comparison with Baseline FP32
 
-| Metric      |   Baseline |     Structural |
-| ----------- | ---------: | -------------: |
-| Model Size  |   13.60 MB |        9.59 MB |
-| CPU Latency | 0.053954 s | **0.037731 s** |
+| Metric | Baseline | Structural |
+|---------|---------:|-----------:|
+| Model Size | 13.60 MB | 9.59 MB |
+| CPU Latency | 0.053954 s | **0.036048 s** |
 
 ---
 
 ## Observations
 
-* Structural pruning physically reduced the size of the neural network.
-* Approximately one million parameters were removed.
-* Model storage decreased from **13.60 MB** to **9.59 MB**.
-* CPU inference latency was measured at **0.037731 s** on the experimental hardware.
-* Structural pruning substantially outperformed masking-based pruning in terms of deployment efficiency.
+- Structural pruning physically reduced the size of the neural network.
+- Approximately one million parameters were removed.
+- Model storage decreased from **13.60 MB** to **9.59 MB**.
+- CPU inference latency was measured at **0.036048 s**.
+- Structural pruning substantially outperformed masking-based pruning in terms of deployment efficiency.
 
 ---
 
 ## Preliminary Conclusion
 
-Unlike masking-based pruning, structural pruning achieved genuine model compression while maintaining efficient CPU inference on the experimental hardware.
+Unlike masking-based pruning, structural pruning achieved genuine model compression while maintaining efficient CPU inference.
 
 These findings suggest that deployment efficiency depends not only on the compression technique itself but also on how the compression is implemented.
 
@@ -93,40 +93,40 @@ Structural Pruning → Dynamic Quantization
 
 ## Results
 
-| Metric      |          Value |
-| ----------- | -------------: |
-| Model Size  |        6.67 MB |
-| CPU Latency | **0.038161 s** |
+| Metric | Value |
+|---------|------:|
+| Model Size | 6.67 MB |
+| CPU Latency | **0.034869 s** |
 
 ### Comparison with Structural Pruning Only
 
-| Metric      |   Structural P | Structural P → Q |
-| ----------- | -------------: | ---------------: |
-| Model Size  |        9.59 MB |          6.67 MB |
-| CPU Latency | **0.037731 s** |   **0.038161 s** |
+| Metric | Structural P | Structural P → Q |
+|---------|-------------:|-----------------:|
+| Model Size | 9.59 MB | 6.67 MB |
+| CPU Latency | **0.036048 s** | **0.034869 s** |
 
 ### Comparison with Baseline FP32
 
-| Metric      |   Baseline | Structural P → Q |
-| ----------- | ---------: | ---------------: |
-| Model Size  |   13.60 MB |          6.67 MB |
-| CPU Latency | 0.053954 s |   **0.038161 s** |
+| Metric | Baseline | Structural P → Q |
+|---------|---------:|-----------------:|
+| Model Size | 13.60 MB | 6.67 MB |
+| CPU Latency | 0.053954 s | **0.034869 s** |
 
 ---
 
 ## Observations
 
-* Dynamic quantization further reduced model storage after structural pruning.
-* Total model size decreased by approximately **51%** relative to the original FP32 baseline.
-* CPU latency was measured at **0.038161 s**, remaining close to the structurally pruned model.
-* The combination of structural pruning and quantization produced the highest compression ratio observed in the study.
-* Unlike Phase 1, compression gains translated into genuine deployment benefits.
+- Dynamic quantization further reduced model storage after structural pruning.
+- Total model size decreased by approximately **51%** relative to the original FP32 baseline.
+- CPU latency remained close to the structurally pruned model.
+- The combination of structural pruning and quantization produced the highest compression ratio observed in this phase.
+- Unlike Phase 1, compression gains translated into genuine deployment benefits.
 
 ---
 
 ## Preliminary Conclusion
 
-Structural Pruning followed by Quantization (**P → Q**) produced the strongest compression outcome observed in the study, achieving substantial model size reduction while maintaining efficient CPU inference.
+Structural Pruning followed by Quantization (**P → Q**) produced the strongest compression outcome observed in this phase, achieving substantial model compression while maintaining efficient CPU inference.
 
 The results suggest that physically reducing network structure before reducing numerical precision is an effective deployment strategy for consumer hardware.
 
@@ -168,48 +168,48 @@ This created a dimensional mismatch that prevented inference execution.
 
 ---
 
-## Framework Compatibility Finding
+## Repair Process
 
-The default combination of PyTorch Dynamic Quantization and Torch-Pruning did not automatically reconstruct the quantized classifier after structural channel removal.
+A repair procedure was performed to preserve both the learned classifier weights and dynamic quantization.
 
-As a result, the native **Q → P** pipeline was not directly deployable.
+The original quantized classifier weights were traced back to the corresponding floating-point representation, and the surviving **1024** input channels identified by the pruning process were retained. The classifier weights were then sliced to match the reduced backbone output dimensionality before reconstructing the `DynamicQuantizedLinear` layer with **1024** input features.
 
-A manual classifier reconstruction step was required to restore inference functionality.
+This repair preserved the trained classifier weights while maintaining dynamic quantization, allowing inference to execute successfully without replacing the quantized classifier with an unquantized linear layer.
 
 ---
 
-## Results (After Classifier Reconstruction)
+## Results (After Repair)
 
-| Metric      |          Value |
-| ----------- | -------------: |
-| Parameters  |      1,435,140 |
-| Model Size  |        9.60 MB |
-| CPU Latency | **0.034752 s** |
+| Metric | Value |
+|---------|------:|
+| Parameters | 1,435,140 |
+| Model Size | 6.66 MB |
+| CPU Latency | **0.038106 s** |
 
 ### Comparison with Structural P → Q
 
-| Metric      |          P → Q | Q → P (Repaired) |
-| ----------- | -------------: | ---------------: |
-| Model Size  |        6.67 MB |          9.60 MB |
-| CPU Latency | **0.038161 s** |   **0.034752 s** |
+| Metric | P → Q | Q → P (Repaired) |
+|---------|------:|-----------------:|
+| Model Size | 6.67 MB | 6.66 MB |
+| CPU Latency | **0.034869 s** | **0.038106 s** |
 
 ---
 
 ## Observations
 
-* Structural pruning successfully removed channels from the quantized model.
-* The native **Q → P** pipeline could not be executed without additional intervention.
-* Manual classifier reconstruction restored inference functionality.
-* Even after repair, the resulting model remained larger than the **P → Q** pipeline.
-* CPU inference latency was measured at **0.034752 s** after classifier reconstruction.
-* Compression order influenced both deployment performance and implementation feasibility.
+- Structural pruning successfully removed channels from the quantized model.
+- The native **Q → P** pipeline could not be executed without additional intervention.
+- The repair preserved both the trained classifier weights and dynamic quantization.
+- After repair, inference executed successfully using a `DynamicQuantizedLinear` classifier with **1024** input features.
+- The repaired model maintained a compact storage size of **6.66 MB**.
+- Compression order influenced both implementation complexity and deployment behavior.
 
 ---
 
 ## Preliminary Conclusion
 
-Unlike Structural **P → Q**, the Structural **Q → P** pipeline encountered framework-level compatibility issues between Dynamic Quantization and structural channel removal.
+Unlike Structural **P → Q**, the Structural **Q → P** pipeline required additional repair to resolve the dimensional mismatch introduced by structural pruning.
 
-Although inference could be restored through manual reconstruction, the resulting model remained larger than the **P → Q** pipeline while requiring additional implementation effort.
+After repairing the classifier while preserving dynamic quantization, inference was successfully restored, allowing a fair evaluation of the **Q → P** pipeline.
 
-These findings suggest that compression order affects not only performance metrics but also practical deployability within existing deep learning toolchains.
+These findings suggest that compression order affects not only performance metrics but also the practical implementation required to deploy compressed neural networks.
