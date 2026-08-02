@@ -4,7 +4,6 @@
 
 This repository contains the code, logs, and results for a research project investigating whether the *order* in which pruning and quantization are applied to a neural network (MobileNetV2) affects real-world deployment performance — latency, model size, and accuracy — on consumer-grade hardware.
 
-The full write-up, including methodology, results, and discussion, is available in [`thesis.pdf`](./thesis.pdf) *(update path/filename as needed)*.
 
 ## Project Structure
 
