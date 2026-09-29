@@ -98,6 +98,25 @@ error using the same repair function, with no architecture-specific
 changes to its core logic.
 
 ---
+## Related Work
+
+The pattern observed in this phase — that depthwise-separable
+convolutions are substantially more sensitive to pruning than standard
+convolutions — is consistent with existing findings in the pruning
+literature. Prior work has specifically identified depthwise
+convolution as difficult to prune without significant accuracy loss,
+noting that depthwise layers carry the only spatial-context operation
+in their block, so reducing them causes disproportionate damage
+compared to standard convolutional filters [Pruning Depthwise
+Separable Convolutions]. This difficulty has motivated an entire line
+of specialized pruning methods designed specifically for
+depthwise-separable architectures (e.g. DEPrune, CpdsConv), rather
+than applying standard channel-pruning methods unmodified. The
+experiments in this phase were conducted independently, using a
+different tool (a generalized post-hoc repair pipeline) and a
+different architecture set than this prior work, and are presented as
+**independent empirical confirmation** of an established phenomenon,
+not as a new discovery.
 
 ## What We Discovered
 
@@ -136,25 +155,21 @@ ResNet-18's (~59 points) and was far smaller than MobileNetV2's
 determine how severely a network's accuracy collapses under naive
 structural pruning.
 
-### 3. Pruning-induced accuracy collapse is explained by convolution type
+### 3. Results are consistent with known depthwise-separable pruning fragility
 
 Adding EfficientNet-B0 as a second depthwise-separable architecture
-confirmed a clear pattern: both depthwise-separable networks
+produced a clear pattern: both depthwise-separable networks
 (MobileNetV2, EfficientNet-B0) collapsed to near-random accuracy under
 one-shot 20% pruning (~89–90 point drops), while both standard-
 convolution networks (ResNet-18, VGG16) retained substantially more
-accuracy (~59–64 point drops), regardless of whether they had skip
-connections. This is a consistent, replicated pattern across two
-independent examples on each side, not a property of a single model.
-
-A plausible mechanism: depthwise-separable convolutions process each
-channel largely in isolation before a lightweight pointwise layer mixes
-information across channels, leaving each channel carrying more
-unique, non-redundant information. Pruning a channel in this design
-likely removes information with no substitute elsewhere in the network.
-Standard convolutions mix channel information more densely throughout,
-providing more redundant capacity to fall back on when a channel is
-removed.
+accuracy (~59–64 point drops), regardless of skip connections. As
+noted above (Related Work), this pattern independently reproduces a
+known phenomenon rather than identifying a new one: depthwise
+convolutions concentrate spatial processing into a single,
+non-redundant operation per channel, leaving little capacity to
+compensate when a channel is removed, whereas standard convolutions
+mix information across channels more densely and tolerate channel
+loss better.
 
 ---
 
@@ -167,14 +182,15 @@ core repair logic, supporting its use as a general-purpose tool for
 resolving Quantize→Prune dimensional mismatches rather than a one-off,
 model-specific fix.
 
-Separately, testing across these four architectures revealed that
-pruning-induced accuracy collapse varies substantially and
-systematically by architecture. An initial hypothesis attributing this
-variation to skip connections was tested and rejected. A revised
-hypothesis — that networks built primarily from depthwise-separable
-convolutions are substantially more vulnerable to one-shot structural
-pruning than networks using standard convolutions — is supported by
-two independent architectures on each side of the comparison.
+Separately, testing across these four architectures independently
+confirmed a known phenomenon from the pruning literature: networks
+built primarily from depthwise-separable convolutions are
+substantially more vulnerable to one-shot structural pruning than
+networks using standard convolutions. An initial hypothesis
+attributing this to skip connections was tested and rejected in favor
+of this convolution-type explanation, which is well-supported here by
+two independent architectures on each side of the comparison and is
+consistent with prior published findings.
 
 This finding meaningfully extends the thesis's core conclusion from
 Phases 3–4. It is not only true that a post-pruning recovery step
